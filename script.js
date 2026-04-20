@@ -278,7 +278,7 @@ function chainBrowseHTML() {
 function routineCardHTML(r, absIdx) {
   const totalMin = r.stages.reduce((a,s) => a+s.minutes, 0) + (r.buffer ? (r.stages.length-1)*5 : 0);
   return `<button class="routine-card" data-ri="${absIdx}" style="background:${V.surface};border:1px solid ${V.border};border-radius:12px;cursor:pointer;text-align:left;transition:all 0.3s ease;overflow:hidden;position:relative;height:140px;padding:0">
-    <img src="${escAttr(r.img)}" alt="" loading="lazy" onload="this.style.opacity=1"
+    <img src="${escAttr(r.img)}" alt="" loading="lazy" class="card-img"
       style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.6s ease;filter:brightness(0.55) saturate(0.85)">
     <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(11,14,17,0.92) 0%,rgba(11,14,17,0.5) 40%,rgba(11,14,17,0.1) 70%,transparent 100%)"></div>
     ${r.buffer ? `<div style="position:absolute;top:6px;right:6px;z-index:2;display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:5px;background:rgba(124,140,248,0.3);backdrop-filter:blur(4px)">
@@ -636,6 +636,10 @@ function attachRoutineCardEvents() {
   document.querySelectorAll('.routine-card').forEach(b => b.addEventListener('click', () => {
     selectRoutine(ROUTINES[+b.dataset.ri]);
   }));
+  document.querySelectorAll('.card-img').forEach(img => {
+    if (img.complete) img.style.opacity = '1';
+    else img.addEventListener('load', () => { img.style.opacity = '1'; });
+  });
 }
 
 function attachChainEditorEvents() {
