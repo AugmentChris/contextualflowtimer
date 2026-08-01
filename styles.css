@@ -18,6 +18,8 @@ input[type="number"] { -moz-appearance: textfield; }
 button:hover { filter: brightness(1.1); }
 button:active { transform: scale(0.97); }
 
+:focus-visible { outline: 2px solid #D4A053; outline-offset: 2px; }
+
 img { -webkit-user-drag: none; user-select: none; }
 
 ::-webkit-scrollbar { width: 3px; }
@@ -45,6 +47,13 @@ img { -webkit-user-drag: none; user-select: none; }
 
 .pulse-dot { animation: pulse 2s infinite; }
 
-.routines-grid-fade {
+.routines-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+@media (max-width: 480px) {
+  .routines-grid { grid-template-columns: repeat(2, 1fr); }
 }
