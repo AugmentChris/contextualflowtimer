@@ -1,4 +1,4 @@
-# Contextual Flow Timer
+# Cadence
 
 A smart, adaptive timer that understands real life.  
 Stop fighting rigid Pomodoro blocks — flow with your actual routines, tasks, and energy levels.
@@ -13,11 +13,14 @@ Stop fighting rigid Pomodoro blocks — flow with your actual routines, tasks, a
   Optional 5-minute wrap-up time between stages.  
   Gives you breathing room to prepare for the next task.
 
-- **Ambient Focus Pulse**  
-  A calming simulated counter that keeps you company while you work. It's a local, generated signal, not real user data.
+- **Focus Room**  
+  A standalone Pomodoro-style timer with an optional session intention, a post-session reflection prompt, and a real streak counter + heatmap built from your own session history — no fake stats.
+
+- **Ambient Soundscape**  
+  Rain, brown noise, and ocean waves, synthesized locally in the browser with the Web Audio API. No audio files, no streaming, off until you press play — most people will just use their own music instead.
 
 - **Fully Local & Private**  
-  No accounts. No sign-up. Custom chains and today's session count are saved in LocalStorage; nothing leaves your browser.
+  No accounts. No sign-up. Chains, focus history, and session notes are saved in LocalStorage; nothing leaves your browser.
 
 ## Tech Stack
 

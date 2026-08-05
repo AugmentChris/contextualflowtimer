@@ -1,0 +1,33 @@
+ Good structural bones already (honest local-only architecture, accessibility basics, two clear tabs). Here's what's actually missing for taking this to market, roughly
+  in priority order:
+
+  Data safety — the biggest risk
+  Everything lives in localStorage only. No export/import. One cleared cache or browser reinstall and a user's custom chains, streak history, and session log are gone
+  permanently. Before you put this in front of real users, I'd add a simple "export/import as JSON" — cheap to build, protects people from losing work they'll come to
+  care about.
+
+  Trust surface
+  No Privacy Policy or About page anywhere. Even though the whole pitch is "nothing leaves your browser," people won't take that on faith without it being stated
+  somewhere explicit — and it matters more once this isn't just you using it.
+
+  Settings
+  Zero preferences screen. No way to mute the chime, see/clear what's stored, or understand the no-account model. Doesn't need to be elaborate, but a single
+  About/Settings page covers three gaps at once.
+
+  Missing basics
+  No favicon or app icons at all right now — index.html doesn't reference one.
+
+  Reliability
+  The countdown itself is actually solid — it recomputes from wall-clock time (endTime), so it self-corrects even if the tab is throttled in the background. But there's
+  no notification path: if the user isn't looking at the tab when a session ends, there's nothing to alert them beyond the in-tab chime.
+
+  PWA readiness
+  No manifest.json or service worker. Adding these gets you installable/offline-capable on desktop and Android for free, and is a real stepping stone toward what you're
+  describing for iOS.
+
+  On the App Store plan specifically — worth knowing now: Apple's review guideline 4.2 rejects apps that are just a website wrapped in a WebView with no native
+  functionality, so "package the site as-is" likely won't pass review. The bigger issue is functional, not just political: a backgrounded iOS app can't run JS timers, so
+  if someone starts a 25-minute session and switches apps, nothing can alert them when it ends without a scheduled local notification — which requires a real native
+  layer (something like Capacitor with a notifications plugin, or a native rewrite of just that piece). Good to keep in mind as you build, so you're not assuming the web
+  app becomes the app store app unchanged.
+

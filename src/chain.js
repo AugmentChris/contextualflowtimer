@@ -4,8 +4,8 @@ import { ROUTINES, PAGES } from './data.js';
 import { fmt, buildRT, escHtml, escAttr } from './utils.js';
 import { loadChains, saveChains } from './persistence.js';
 import { chime, softChime } from './audio.js';
+import { notifySessionEnd } from './notifications.js';
 import { circularProgressHTML, updateProgressCircle, stageBarsHTML, updateStageBars, roundBtnHTML } from './ui.js';
-import { ambientPulse } from './ambient.js';
 
 // ── Chain Timer State ──
 const CS = {
@@ -85,10 +85,10 @@ function routineCardHTML(r, absIdx) {
   return `<button class="routine-card" data-ri="${absIdx}" style="background:${V.surface};border:1px solid ${V.border};border-radius:12px;cursor:pointer;text-align:left;transition:all 0.3s ease;overflow:hidden;position:relative;height:140px;padding:0">
     <img src="${escAttr(r.img)}" alt="" loading="lazy" class="card-img"
       style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity 0.6s ease;filter:brightness(0.55) saturate(0.85)">
-    <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(11,14,17,0.92) 0%,rgba(11,14,17,0.5) 40%,rgba(11,14,17,0.1) 70%,transparent 100%)"></div>
-    ${r.buffer ? `<div style="position:absolute;top:6px;right:6px;z-index:2;display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:5px;background:rgba(124,140,248,0.3);backdrop-filter:blur(4px)">
+    <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(22,20,15,0.92) 0%,rgba(22,20,15,0.5) 40%,rgba(22,20,15,0.1) 70%,transparent 100%)"></div>
+    ${r.buffer ? `<div style="position:absolute;top:6px;right:6px;z-index:2;display:flex;align-items:center;gap:3px;padding:2px 6px;border-radius:5px;background:rgba(139,154,156,0.3);backdrop-filter:blur(4px)">
       <span style="display:flex;color:${V.buf};transform:scale(0.6)">${I.buffer}</span>
-      <span style="font-size:7px;color:#B8C0FF;font-family:${V.mono};font-weight:500">Buffer</span>
+      <span style="font-size:7px;color:#C8D0D1;font-family:${V.mono};font-weight:500">Buffer</span>
     </div>` : ''}
     <div style="position:absolute;bottom:0;left:0;right:0;padding:8px 10px 10px;z-index:2;display:flex;flex-direction:column;gap:3px">
       <div style="font-size:11px;color:#fff;font-family:${V.sans};font-weight:600;line-height:1.25;text-shadow:0 1px 4px rgba(0,0,0,0.5)">${escHtml(r.name)}</div>
@@ -122,7 +122,7 @@ function chainEditorHTML() {
       </button>
       <div id="buffer-toggle" role="switch" aria-checked="${CS.editBuffer}" aria-label="Smart Buffer" tabindex="0" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:12px;
         background:${CS.editBuffer?V.bufM:'rgba(255,255,255,0.02)'};
-        border:1px solid ${CS.editBuffer?'rgba(124,140,248,0.18)':V.border};transition:all 0.3s ease;cursor:pointer">
+        border:1px solid ${CS.editBuffer?'rgba(139,154,156,0.18)':V.border};transition:all 0.3s ease;cursor:pointer">
         <div style="display:flex;align-items:center;gap:10px">
           <span style="display:flex;color:${CS.editBuffer?V.buf:V.textD}">${I.buffer}</span>
           <div>
@@ -182,7 +182,6 @@ function chainTimerViewHTML() {
   const si = CS.stageIdx;
   const { stageProgress, globalProgress, isBuffer, currentColor } = chainComputed();
   const displayTime = CS.remaining !== null ? fmt(CS.remaining) : fmt((rt[0] ? rt[0].minutes : 0)*60);
-  const liveBarDisplay = CS.running && !isBuffer ? 'flex' : 'none';
   const bufBannerDisplay = CS.running && isBuffer && CS.remaining !== null ? 'flex' : 'none';
 
   const innerHTML = CS.done
@@ -198,7 +197,7 @@ function chainTimerViewHTML() {
     ${CS.activeChain ? `
       <div style="display:flex;align-items:center;gap:8px">
         <div style="font-size:14px;color:${V.text};font-family:${V.sans};font-weight:600">${escHtml(CS.activeChain.name)}</div>
-        ${CS.activeChain.buffer ? `<div style="display:flex;align-items:center;gap:4px;padding:3px 9px;border-radius:8px;background:${V.bufM};border:1px solid rgba(124,140,248,0.12)">
+        ${CS.activeChain.buffer ? `<div style="display:flex;align-items:center;gap:4px;padding:3px 9px;border-radius:8px;background:${V.bufM};border:1px solid rgba(139,154,156,0.12)">
           <span style="display:flex;color:${V.buf};transform:scale(0.75)">${I.buffer}</span>
           <span style="font-size:10px;color:${V.buf};font-family:${V.mono};font-weight:500">Buffer</span>
         </div>` : ''}
@@ -210,13 +209,7 @@ function chainTimerViewHTML() {
       <div id="ct-buttons" style="display:flex;gap:14px;align-items:center">
         ${chainTimerBtnsHTML()}
       </div>
-      <div id="ct-ambient-bar" style="display:${liveBarDisplay};align-items:center;gap:8px;padding:8px 18px;border-radius:24px;background:${V.tealM};border:1px solid rgba(78,205,196,0.10)">
-        <div class="pulse-dot" style="width:6px;height:6px;border-radius:3px;background:${V.teal}"></div>
-        <span style="font-size:12px;color:${V.textM};font-family:${V.sans}">
-          <span class="ambient-pulse-val" style="color:${V.teal};font-weight:600;font-family:${V.mono}">${ambientPulse.toLocaleString()}</span> in the ambient pulse
-        </span>
-      </div>
-      <div id="ct-buf-banner" style="display:${bufBannerDisplay};align-items:center;gap:10px;padding:10px 18px;border-radius:12px;background:${V.bufM};border:1px solid rgba(124,140,248,0.15)">
+      <div id="ct-buf-banner" style="display:${bufBannerDisplay};align-items:center;gap:10px;padding:10px 18px;border-radius:12px;background:${V.bufM};border:1px solid rgba(139,154,156,0.15)">
         <span style="display:flex;color:${V.buf}">${I.buffer}</span>
         <div style="flex:1">
           <div style="font-size:12px;color:${V.buf};font-family:${V.sans};font-weight:600">Wrap-up time</div>
@@ -298,7 +291,6 @@ function startChain() {
   CS.remaining = CS.runtimeStages[0].minutes * 60;
   chime();
   updateChainTimerButtons();
-  updateChainLiveBar();
   startChainInterval();
 }
 
@@ -315,15 +307,14 @@ function startChainInterval() {
         CS.endTime = Date.now() + CS.runtimeStages[nx].minutes * 60 * 1000;
         CS.remaining = CS.runtimeStages[nx].minutes * 60;
         refreshChainTimerInner();
-        updateChainLiveBar();
       } else {
         chime();
+        notifySessionEnd('Chain complete', `${CS.activeChain?.name || 'Your chain'} has finished.`);
         CS.done = true;
         CS.running = false;
         stopChainInterval();
         refreshChainTimerInner();
         updateChainTimerButtons();
-        updateChainLiveBar();
       }
     } else {
       tickChainTimerDisplay();
@@ -374,12 +365,6 @@ function updateChainTimerButtons() {
   if (!btns) return;
   btns.innerHTML = chainTimerBtnsHTML();
   attachChainTimerBtnEvents();
-}
-
-function updateChainLiveBar() {
-  const { isBuffer } = chainComputed();
-  const bar = document.getElementById('ct-ambient-bar');
-  if (bar) bar.style.display = (CS.running && !isBuffer) ? 'flex' : 'none';
 }
 
 // ────────────────────────────────────
@@ -581,7 +566,6 @@ function attachChainTimerBtnEvents() {
   document.getElementById('ct-stop')?.addEventListener('click', () => {
     stopChain();
     updateChainTimerButtons();
-    updateChainLiveBar();
     const timeEl = document.getElementById('ct-time');
     if (timeEl && CS.runtimeStages[0]) timeEl.textContent = fmt(CS.runtimeStages[0].minutes * 60);
     updateProgressCircle('chain-circle', 0, CS.runtimeStages[0] ? CS.runtimeStages[0].color : V.accent, 240, 5);

@@ -2,7 +2,7 @@ import { V } from './tokens.js';
 import { I } from './icons.js';
 import { renderChainContent } from './chain.js';
 import { renderFocusContent } from './focus.js';
-import { startAmbientPulse } from './ambient.js';
+import { settingsPanelHTML, attachSettingsHandlers } from './settings.js';
 
 let appTab = 'chain';
 
@@ -39,12 +39,17 @@ function mountApp() {
   app.innerHTML = `
     <div style="min-height:100vh;background:${V.bg};color:${V.text};font-family:${V.sans};display:flex;flex-direction:column;align-items:center;padding:0 16px 60px">
       <div class="anim-fade-up" style="width:100%;max-width:560px;padding-top:44px;margin-bottom:36px">
-        <div style="display:flex;align-items:center;gap:14px">
-          <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,${V.accent},#B8863A);display:flex;align-items:center;justify-content:center;color:${V.bg};box-shadow:0 4px 24px ${V.accentG}">${I.hourglass}</div>
-          <div>
-            <h1 style="font-size:21px;font-weight:600;letter-spacing:-0.5px;color:${V.text};font-family:${V.sans};line-height:1.2">Contextual Flow</h1>
-            <div style="font-size:10px;color:${V.textD};font-family:${V.mono};letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">time that adapts to the task</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px">
+          <div style="display:flex;align-items:center;gap:14px">
+            <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,${V.accent},#7A6547);display:flex;align-items:center;justify-content:center;color:${V.bg};box-shadow:0 4px 24px ${V.accentG}">${I.hourglass}</div>
+            <div>
+              <h1 style="font-size:21px;font-weight:600;letter-spacing:-0.5px;color:${V.text};font-family:${V.sans};line-height:1.2">Cadence</h1>
+              <div style="font-size:10px;color:${V.textD};font-family:${V.mono};letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">time that adapts to the task</div>
+            </div>
           </div>
+          <button id="settings-btn" aria-label="Settings" aria-expanded="false" style="width:36px;height:36px;border-radius:10px;border:1px solid ${V.border};background:${V.surface};color:${V.textM};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">${I.settings}</button>
+        </div>
+        <div id="settings-panel" style="display:none;margin-top:14px;padding:16px;border-radius:12px;border:1px solid ${V.border};background:${V.surface};flex-direction:column;gap:14px">
         </div>
       </div>
       <div class="anim-fade-up-delay" style="width:100%;max-width:560px;display:flex;flex-direction:column;gap:28px">
@@ -65,8 +70,28 @@ function mountApp() {
   }
   document.getElementById('tab-bar').addEventListener('click', onTabClick);
 
+  const settingsBtn = document.getElementById('settings-btn');
+  const settingsPanel = document.getElementById('settings-panel');
+  let settingsLoaded = false;
+
+  settingsBtn.addEventListener('click', () => {
+    const open = settingsPanel.style.display === 'flex';
+    if (!open && !settingsLoaded) {
+      settingsPanel.innerHTML = settingsPanelHTML();
+      attachSettingsHandlers(settingsPanel);
+      settingsLoaded = true;
+    }
+    settingsPanel.style.display = open ? 'none' : 'flex';
+    settingsBtn.setAttribute('aria-expanded', String(!open));
+  });
+
   renderTabContent();
-  startAmbientPulse();
 }
 
 document.addEventListener('DOMContentLoaded', mountApp);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}

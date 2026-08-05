@@ -1,13 +1,13 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: #0B0E11;
-  color: #E8E6E3;
+  background: #16140F;
+  color: #EAE1CF;
   font-family: 'Sora', sans-serif;
   min-height: 100vh;
 }
 
-::selection { background: rgba(212,160,83,0.13); color: #D4A053; }
+::selection { background: rgba(156,175,136,0.13); color: #9CAF88; }
 
 input::placeholder { color: rgba(232,230,227,0.22); }
 
@@ -18,7 +18,7 @@ input[type="number"] { -moz-appearance: textfield; }
 button:hover { filter: brightness(1.1); }
 button:active { transform: scale(0.97); }
 
-:focus-visible { outline: 2px solid #D4A053; outline-offset: 2px; }
+:focus-visible { outline: 2px solid #9CAF88; outline-offset: 2px; }
 
 img { -webkit-user-drag: none; user-select: none; }
 
