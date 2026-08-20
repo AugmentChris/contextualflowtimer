@@ -7,12 +7,13 @@ import {
 } from './persistence.js';
 import { chime } from './audio.js';
 import { notifySessionEnd } from './notifications.js';
-import { circularProgressHTML, updateProgressCircle, roundBtnHTML } from './ui.js';
+import { circularProgressHTML, updateProgressCircle, roundBtnHTML, playLogoStartAnimation } from './ui.js';
 import { isPlaying, currentTrackLabel, getVolume, toggleSoundscape, nextTrack, setVolume, stopSoundscape } from './soundscape.js';
 
 // ── Focus Room State ──
 const FS = {
   dur: 25,
+  customHr: '',
   customDur: '',
   showCustom: false,
   running: false,
@@ -156,7 +157,7 @@ function recentLogHTML() {
 
 function focusRoomHTML() {
   const progress = FS.remaining !== null && FS.dur > 0 ? 1 - FS.remaining/(FS.dur*60) : 0;
-  const durs = [15,25,30,60,90];
+  const durs = [15,25,30,60];
   const showPicker = !FS.running && FS.remaining === null;
   const isCustom = !durs.includes(FS.dur) || FS.showCustom;
 
@@ -174,7 +175,12 @@ function focusRoomHTML() {
         ${FS.showCustom ? `
           <div style="display:flex;gap:8px;align-items:center;animation:fadeIn 0.2s ease">
             <div style="display:flex;align-items:center;gap:4px;background:${V.surface};border:1px solid ${V.border};border-radius:10px;padding:0 12px">
-              <input id="custom-dur-input" type="number" value="${FS.customDur}" min="1" max="999" placeholder="min" aria-label="Custom duration in minutes" autofocus
+              <input id="custom-hr-input" type="number" value="${FS.customHr}" min="0" max="24" placeholder="0" aria-label="Custom duration hours" autofocus
+                style="width:40px;background:transparent;border:none;color:${V.text};font-size:14px;font-family:${V.mono};text-align:center;padding:10px 0">
+              <span style="font-size:10px;color:${V.textD};font-family:${V.mono}">hr</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;background:${V.surface};border:1px solid ${V.border};border-radius:10px;padding:0 12px">
+              <input id="custom-dur-input" type="number" value="${FS.customDur}" min="0" max="999" placeholder="min" aria-label="Custom duration in minutes"
                 style="width:56px;background:transparent;border:none;color:${V.text};font-size:14px;font-family:${V.mono};text-align:center;padding:10px 0">
               <span style="font-size:10px;color:${V.textD};font-family:${V.mono}">min</span>
             </div>
@@ -231,6 +237,7 @@ function startFocus() {
     renderSessionHeader();
   }, 8000);
   chime();
+  playLogoStartAnimation();
   renderFocusContent();
 }
 
@@ -346,15 +353,19 @@ function attachFocusEvents() {
     renderFocusContent();
   });
   const applyCustom = () => {
-    const inp = document.getElementById('custom-dur-input');
-    if (!inp) return;
-    const v = parseInt(inp.value);
-    if (v > 0 && v <= 999) {
-      FS.dur = v;
+    const hrInp = document.getElementById('custom-hr-input');
+    const minInp = document.getElementById('custom-dur-input');
+    if (!minInp) return;
+    const hr = hrInp ? parseInt(hrInp.value) || 0 : 0;
+    const min = parseInt(minInp.value) || 0;
+    const total = hr * 60 + min;
+    if (hr >= 0 && hr <= 24 && min >= 0 && min <= 999 && total > 0) {
+      FS.dur = total;
       FS.showCustom = false;
       renderFocusContent();
     }
   };
+  document.getElementById('custom-hr-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') applyCustom(); });
   document.getElementById('custom-dur-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') applyCustom(); });
   document.getElementById('custom-dur-set')?.addEventListener('click', applyCustom);
   document.getElementById('reflection-skip')?.addEventListener('click', () => finalizePendingEntry(''));

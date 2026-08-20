@@ -40,8 +40,8 @@ function mountApp() {
     <div style="min-height:100vh;background:${V.bg};color:${V.text};font-family:${V.sans};display:flex;flex-direction:column;align-items:center;padding:0 16px 60px">
       <div class="anim-fade-up" style="width:100%;max-width:560px;padding-top:44px;margin-bottom:36px">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:14px">
-          <div style="display:flex;align-items:center;gap:14px">
-            <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,${V.accent},#7A6547);display:flex;align-items:center;justify-content:center;color:${V.bg};box-shadow:0 4px 24px ${V.accentG}">${I.hourglass}</div>
+          <div style="display:flex;align-items:center;gap:14px;perspective:400px">
+            <div id="logo-icon" style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,${V.accent},#7A6547);display:flex;align-items:center;justify-content:center;color:${V.bg};box-shadow:0 4px 24px ${V.accentG}">${I.hourglass}</div>
             <div>
               <h1 style="font-size:21px;font-weight:600;letter-spacing:-0.5px;color:${V.text};font-family:${V.sans};line-height:1.2">Cadence</h1>
               <div style="font-size:10px;color:${V.textD};font-family:${V.mono};letter-spacing:1.5px;text-transform:uppercase;margin-top:2px">time that adapts to the task</div>
@@ -90,8 +90,17 @@ function mountApp() {
 
 document.addEventListener('DOMContentLoaded', mountApp);
 
+// Skip the service worker entirely on localhost — its cache-first strategy
+// means local edits get served stale until the cache is manually busted,
+// which only helps real deployments (offline support), not development.
+const isLocalDev = ['localhost', '127.0.0.1'].includes(location.hostname);
+
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
-  });
+  if (isLocalDev) {
+    navigator.serviceWorker.getRegistrations().then(regs => regs.forEach(r => r.unregister()));
+  } else {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
 }

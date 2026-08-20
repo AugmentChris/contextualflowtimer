@@ -5,7 +5,7 @@ import { fmt, buildRT, escHtml, escAttr } from './utils.js';
 import { loadChains, saveChains } from './persistence.js';
 import { chime, softChime } from './audio.js';
 import { notifySessionEnd } from './notifications.js';
-import { circularProgressHTML, updateProgressCircle, stageBarsHTML, updateStageBars, roundBtnHTML } from './ui.js';
+import { circularProgressHTML, updateProgressCircle, stageBarsHTML, updateStageBars, roundBtnHTML, playLogoStartAnimation } from './ui.js';
 
 // ── Chain Timer State ──
 const CS = {
@@ -290,6 +290,7 @@ function startChain() {
   CS.done = false;
   CS.remaining = CS.runtimeStages[0].minutes * 60;
   chime();
+  playLogoStartAnimation();
   updateChainTimerButtons();
   startChainInterval();
 }
@@ -428,6 +429,11 @@ function attachRoutineCardEvents() {
   });
 }
 
+// Bound once per full editor render. #stages-list is replaced independently
+// on every add/remove/minute change (see rerenderEditorStages) — rebinding
+// these container-level listeners on that path would stack duplicates onto
+// elements that never get recreated (add-stage-btn, save-chain-btn, etc.),
+// so each stale listener fires again on the next click.
 function attachChainEditorEvents() {
   const el = document.getElementById('chain-content');
   if (!el) return;
@@ -439,35 +445,7 @@ function attachChainEditorEvents() {
 
   el.querySelector('#chain-name-input')?.addEventListener('input', e => { CS.editName = e.target.value; });
 
-  el.querySelectorAll('.stage-label').forEach(inp => inp.addEventListener('input', e => {
-    CS.editStages[+inp.dataset.si].label = e.target.value;
-    const errEl = document.getElementById('chain-editor-error');
-    if (errEl) errEl.style.display = 'none';
-  }));
-
-  el.querySelectorAll('.min-input').forEach(inp => inp.addEventListener('change', e => {
-    const v = parseInt(e.target.value);
-    if (!isNaN(v) && v >= 1 && v <= 999) CS.editStages[+inp.dataset.si].minutes = v;
-    else e.target.value = CS.editStages[+inp.dataset.si].minutes;
-  }));
-
-  el.querySelectorAll('.min-up').forEach(btn => btn.addEventListener('click', () => {
-    const si = +btn.dataset.si;
-    CS.editStages[si].minutes = Math.min(999, CS.editStages[si].minutes + 1);
-    rerenderEditorStages();
-  }));
-  el.querySelectorAll('.min-down').forEach(btn => btn.addEventListener('click', () => {
-    const si = +btn.dataset.si;
-    CS.editStages[si].minutes = Math.max(1, CS.editStages[si].minutes - 1);
-    rerenderEditorStages();
-  }));
-
-  el.querySelectorAll('.rm-stage').forEach(btn => btn.addEventListener('click', () => {
-    const si = +btn.dataset.si;
-    CS.editStages.splice(si, 1);
-    rerenderEditorStages();
-    updateEditorTotal();
-  }));
+  attachStageListEvents();
 
   el.querySelector('#add-stage-btn')?.addEventListener('click', () => {
     CS.editStages.push({label:'', minutes:5, color:SC[CS.editStages.length % SC.length]});
@@ -490,11 +468,48 @@ function attachChainEditorEvents() {
   el.querySelector('#save-chain-btn')?.addEventListener('click', saveChain);
 }
 
+// Only the per-row listeners — safe to call every time #stages-list's
+// innerHTML is replaced, since those elements are freshly created each time.
+function attachStageListEvents() {
+  const list = document.getElementById('stages-list');
+  if (!list) return;
+
+  list.querySelectorAll('.stage-label').forEach(inp => inp.addEventListener('input', e => {
+    CS.editStages[+inp.dataset.si].label = e.target.value;
+    const errEl = document.getElementById('chain-editor-error');
+    if (errEl) errEl.style.display = 'none';
+  }));
+
+  list.querySelectorAll('.min-input').forEach(inp => inp.addEventListener('change', e => {
+    const v = parseInt(e.target.value);
+    if (!isNaN(v) && v >= 1 && v <= 999) CS.editStages[+inp.dataset.si].minutes = v;
+    else e.target.value = CS.editStages[+inp.dataset.si].minutes;
+  }));
+
+  list.querySelectorAll('.min-up').forEach(btn => btn.addEventListener('click', () => {
+    const si = +btn.dataset.si;
+    CS.editStages[si].minutes = Math.min(999, CS.editStages[si].minutes + 1);
+    rerenderEditorStages();
+  }));
+  list.querySelectorAll('.min-down').forEach(btn => btn.addEventListener('click', () => {
+    const si = +btn.dataset.si;
+    CS.editStages[si].minutes = Math.max(1, CS.editStages[si].minutes - 1);
+    rerenderEditorStages();
+  }));
+
+  list.querySelectorAll('.rm-stage').forEach(btn => btn.addEventListener('click', () => {
+    const si = +btn.dataset.si;
+    CS.editStages.splice(si, 1);
+    rerenderEditorStages();
+    updateEditorTotal();
+  }));
+}
+
 function rerenderEditorStages() {
   const list = document.getElementById('stages-list');
   if (list) {
     list.innerHTML = editorStagesHTML();
-    attachChainEditorEvents();
+    attachStageListEvents();
   }
   updateEditorTotal();
 }

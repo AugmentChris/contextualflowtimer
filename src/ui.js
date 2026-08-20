@@ -62,6 +62,18 @@ export function updateStageBars(stages, currentIdx, progress) {
   });
 }
 
+// ── Logo animation (plays once whenever a chain or focus timer starts) ──
+let logoAnimTimer = null;
+export function playLogoStartAnimation() {
+  const el = document.getElementById('logo-icon');
+  if (!el) return;
+  el.classList.remove('anim-timer-start');
+  void el.offsetWidth; // reflow so the animation can replay from scratch
+  el.classList.add('anim-timer-start');
+  clearTimeout(logoAnimTimer);
+  logoAnimTimer = setTimeout(() => el.classList.remove('anim-timer-start'), 1700);
+}
+
 // ── Round Icon Button ──
 export function roundBtnHTML(id, icon, variant, label, size) {
   size = size || 52;
