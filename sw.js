@@ -1,7 +1,7 @@
 // Bump this whenever any precached file changes — otherwise clients keep
 // serving the old cached versions indefinitely (the cache-first strategy
 // below never re-checks the network for a URL it already has).
-const CACHE_NAME = 'cadence-static-v3';
+const CACHE_NAME = 'cadence-static-v4';
 
 const PRECACHE_URLS = [
   './',

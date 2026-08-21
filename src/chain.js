@@ -25,6 +25,8 @@ const CS = {
   intervalId: null,
   autoCycleId: null,
   runtimeStages: [],
+  previewStages: [],
+  previewExpanded: false,
 };
 
 // ── Computed chain values ──
@@ -177,6 +179,48 @@ function minuteDialHTML(value, si) {
   </div>`;
 }
 
+// ── Pre-start stage adjustment (sliders) ──
+// Shown only before a chain is started, so someone inspired by a preset's
+// rough shape can quickly retune stage lengths without going through the
+// full stepper-based chain editor (that one's for precise from-scratch
+// building; this one's for "close enough, just nudge it").
+function stagePreviewPanelHTML() {
+  const changed = CS.previewStages.some((s,i) => s.minutes !== CS.activeChain.stages[i]?.minutes);
+
+  if (!CS.previewExpanded) {
+    return `<button id="preview-toggle-btn" style="width:100%;padding:12px 0;border-radius:12px;border:1px dashed ${V.border};background:transparent;color:${V.textM};cursor:pointer;font-size:12px;font-family:${V.sans};font-weight:500;display:flex;align-items:center;justify-content:center;gap:7px">
+      ${I.settings} Adjust Stage Times${changed ? `<span style="color:${V.accent}">· adjusted</span>` : ''} ${I.chevronDown}
+    </button>`;
+  }
+
+  return `<div style="width:100%;display:flex;flex-direction:column;gap:14px;background:${V.surface};border:1px solid ${V.border};border-radius:14px;padding:16px 18px">
+    <button id="preview-collapse-btn" style="all:unset;cursor:pointer;display:flex;align-items:center;justify-content:space-between;width:100%">
+      <span style="font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:${V.textD};font-family:${V.mono};font-weight:500">Adjust Stage Times</span>
+      <span style="display:flex;color:${V.textD};transform:rotate(180deg)">${I.chevronDown}</span>
+    </button>
+    <button id="reset-preview-btn" style="display:${changed?'inline':'none'};align-self:flex-start;background:none;border:none;color:${V.accent};cursor:pointer;font-size:11px;font-family:${V.sans};padding:0;margin-top:-6px">Reset to suggested</button>
+    <div id="stage-preview-list" style="display:flex;flex-direction:column;gap:14px">${stagePreviewSlidersHTML()}</div>
+    <div id="stage-preview-total" style="font-size:11px;color:${V.textD};font-family:${V.mono};text-align:center">${previewTotalLabel()}</div>
+  </div>`;
+}
+
+function stagePreviewSlidersHTML() {
+  return CS.previewStages.map((s,i) => `
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:7px;height:7px;border-radius:50%;flex-shrink:0;background:${s.color}"></div>
+      <div style="width:88px;flex-shrink:0;font-size:12px;color:${V.textM};font-family:${V.sans};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s.label)}</div>
+      <input type="range" class="stage-preview-slider" data-si="${i}" min="1" max="120" step="1" value="${s.minutes}"
+        aria-label="${escAttr(s.label)} duration in minutes" style="flex:1;accent-color:${V.accent}">
+      <div class="stage-preview-min" data-si="${i}" style="width:36px;flex-shrink:0;text-align:right;font-size:12px;color:${V.text};font-family:${V.mono}">${s.minutes}m</div>
+    </div>`).join('');
+}
+
+function previewTotalLabel() {
+  const b = CS.previewStages.reduce((a,s) => a+s.minutes, 0);
+  const bf = CS.activeChain?.buffer ? (CS.previewStages.length-1)*5 : 0;
+  return `Total: ${b+bf} min${bf ? ` (${b}m + ${bf}m buffer)` : ''}`;
+}
+
 function chainTimerViewHTML() {
   const rt = CS.runtimeStages;
   const si = CS.stageIdx;
@@ -206,6 +250,7 @@ function chainTimerViewHTML() {
       <div id="chain-progress-wrap">
         ${circularProgressHTML('chain-circle', globalProgress, currentColor, 240, 5, innerHTML)}
       </div>
+      ${!CS.running && !CS.done ? `<div id="stage-preview-panel">${stagePreviewPanelHTML()}</div>` : ''}
       <div id="ct-buttons" style="display:flex;gap:14px;align-items:center">
         ${chainTimerBtnsHTML()}
       </div>
@@ -272,14 +317,27 @@ function stopChain() {
   CS.remaining = null;
   CS.stageIdx = 0;
   CS.done = false;
+  // Collapsed is the default every time we land back in a pre-start state —
+  // selecting a routine, stopping mid-chain, or backing out of the editor —
+  // so the adjust panel never stays pinned open unexpectedly.
+  CS.previewExpanded = false;
 }
 
 function selectRoutine(r) {
   stopChain();
   CS.activeChain = r;
-  CS.runtimeStages = buildRT(r.stages, r.buffer);
+  // A working clone the pre-start sliders can freely mutate — r.stages is
+  // the shared ROUTINES/userChains data and must stay untouched so "Reset"
+  // has an original to restore and so adjusting one preset doesn't leak
+  // into the next time it's selected.
+  CS.previewStages = r.stages.map(s => ({...s}));
+  rebuildRuntimeFromPreview();
   CS.view = 'timer';
   renderChainContent();
+}
+
+function rebuildRuntimeFromPreview() {
+  CS.runtimeStages = buildRT(CS.previewStages, CS.activeChain?.buffer);
 }
 
 function startChain() {
@@ -303,10 +361,21 @@ function startChainInterval() {
     if (diff <= 0) {
       const nx = CS.stageIdx + 1;
       if (nx < CS.runtimeStages.length) {
-        CS.runtimeStages[nx].isBuffer ? softChime() : chime();
+        const finished = CS.runtimeStages[CS.stageIdx];
+        const nextStage = CS.runtimeStages[nx];
+        nextStage.isBuffer ? softChime() : chime();
         CS.stageIdx = nx;
-        CS.endTime = Date.now() + CS.runtimeStages[nx].minutes * 60 * 1000;
-        CS.remaining = CS.runtimeStages[nx].minutes * 60;
+        CS.endTime = Date.now() + nextStage.minutes * 60 * 1000;
+        CS.remaining = nextStage.minutes * 60;
+        // Only alert on transitions into a real stage — the brief wrap-up
+        // buffer isn't worth a system notification on its own.
+        if (!nextStage.isBuffer) {
+          const endClock = new Date(CS.endTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+          notifySessionEnd(
+            `${finished.label || 'Stage'} finished`,
+            `Next: ${nextStage.label || 'Untitled'} — ${nextStage.minutes} min (ends ${endClock})`
+          );
+        }
         refreshChainTimerInner();
       } else {
         chime();
@@ -561,7 +630,8 @@ function saveChain() {
   }
   saveChains(CS.userChains);
   CS.activeChain = chain;
-  CS.runtimeStages = buildRT(chain.stages, chain.buffer);
+  CS.previewStages = chain.stages.map(s => ({...s}));
+  rebuildRuntimeFromPreview();
   CS.editingIdx = null;
   CS.view = 'timer';
   renderChainContent();
@@ -574,17 +644,55 @@ function attachChainTimerEvents() {
     renderChainContent();
   });
   attachChainTimerBtnEvents();
+  attachStagePreviewEvents();
+}
+
+// Patches text/values in place rather than re-rendering #stage-preview-list
+// on every drag tick — replacing a range input's own DOM node mid-drag would
+// drop the browser's pointer capture and cut the drag short.
+function attachStagePreviewEvents() {
+  document.getElementById('preview-toggle-btn')?.addEventListener('click', () => {
+    CS.previewExpanded = true;
+    renderChainContent();
+  });
+  document.getElementById('preview-collapse-btn')?.addEventListener('click', () => {
+    CS.previewExpanded = false;
+    renderChainContent();
+  });
+
+  const list = document.getElementById('stage-preview-list');
+  if (!list) return;
+
+  list.querySelectorAll('.stage-preview-slider').forEach(inp => inp.addEventListener('input', e => {
+    const si = +inp.dataset.si;
+    const v = +e.target.value;
+    CS.previewStages[si].minutes = v;
+    const minLabel = list.querySelector(`.stage-preview-min[data-si="${si}"]`);
+    if (minLabel) minLabel.textContent = `${v}m`;
+    rebuildRuntimeFromPreview();
+    refreshChainTimerInner();
+    const totalEl = document.getElementById('stage-preview-total');
+    if (totalEl) totalEl.textContent = previewTotalLabel();
+    const resetBtn = document.getElementById('reset-preview-btn');
+    if (resetBtn) resetBtn.style.display = CS.previewStages.some((s,i) => s.minutes !== CS.activeChain.stages[i]?.minutes) ? 'inline' : 'none';
+  }));
+
+  document.getElementById('reset-preview-btn')?.addEventListener('click', () => {
+    CS.previewStages = CS.activeChain.stages.map(s => ({...s}));
+    rebuildRuntimeFromPreview();
+    renderChainContent();
+  });
 }
 
 function attachChainTimerBtnEvents() {
   document.getElementById('ct-start')?.addEventListener('click', startChain);
   document.getElementById('ct-stop')?.addEventListener('click', () => {
     stopChain();
-    updateChainTimerButtons();
-    const timeEl = document.getElementById('ct-time');
-    if (timeEl && CS.runtimeStages[0]) timeEl.textContent = fmt(CS.runtimeStages[0].minutes * 60);
-    updateProgressCircle('chain-circle', 0, CS.runtimeStages[0] ? CS.runtimeStages[0].color : V.accent, 240, 5);
-    updateStageBars(CS.runtimeStages, 0, 0);
+    // Full re-render (rather than patching the few nodes the old countdown
+    // needed) so the stage-adjustment panel reappears now that we're back
+    // in a pre-start state — someone stopping mid-chain to retune a stage
+    // shouldn't have to leave and reselect the routine to see it again.
+    renderChainContent();
   });
   document.getElementById('ct-restart')?.addEventListener('click', () => {
     CS.done = false;
